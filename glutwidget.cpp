@@ -170,11 +170,11 @@ void glutWidget::initOpenGL()
     //Initialize vertex buffer
     glGenBuffers(1, &m_vertexbuffer);               //generate a vertex buffer
     glBindBuffer(GL_ARRAY_BUFFER, m_vertexbuffer);  //bind buffer to be active
-    glBufferData(GL_ARRAY_BUFFER, 216*sizeof(float), data, GL_STATIC_DRAW); //set buffer data
-    
+    glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW); //set buffer data
+    glVertexPointer(3, GL_FLOAT, 0, NULL); //Let OpenGl know that there are 3 coordinates per vertex
+    glEnableClientState(GL_VERTEX_ARRAY); //Let OpenGL know that the VBO contains verticies
     glEnableVertexAttribArray(m_pos_attribute_location); //point to position attribute in shader
-    glVertexAttribPointer(m_pos_attribute_location, 3, GL_FLOAT, GL_FALSE, 0, 0); //indicates array data of position attribute
-    
+    glVertexAttribPointer(m_pos_attribute_location, 3, GL_FLOAT, GL_FALSE, 0, 0); //indicates array data of position attribute  
     
     //makeShaders();          //load data of fragment and vertex programs/shaders - compile shaders
     
