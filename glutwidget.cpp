@@ -6,6 +6,8 @@
 #include "glutwidget.hpp"
 #include "shader_utils.hpp"
 #include <iostream>
+#include <cmath>
+#include <ctime>
 
 int glutWidget::m_pos_attribute_location;
 unsigned int glutWidget::m_vertexbuffer;
@@ -24,7 +26,7 @@ glutWidget::glutWidget(int argc, char** argv)
     glutInitWindowSize(glutWidget::m_width, glutWidget::m_height);
     glutInit(&argc,argv);
     glutInitDisplayString("samples rgb double depth");
-    glutCreateWindow("Mandelbrot");
+    glutCreateWindow("Bezier");
     glutMouseFunc(mouseHandler);     //what to call when user clicks or scrolls
     glutKeyboardFunc(keyDown);       //what to call when user presses a key
     glutKeyboardUpFunc(keyUp);       //what to call when user releases a key
@@ -68,9 +70,61 @@ void glutWidget::checkExtensions()
     }    
 }
 
-//These are the control points for the bezier curves. This really shouldn't be a
-//global variable, but I was lazy. Sorry.
-GLfloat curves[12][4][3] =
+
+
+
+/*
+ Initializes opengl states
+ */
+void glutWidget::initOpenGL()
+{
+    glewExperimental = GL_TRUE; 
+    GLenum err = glewInit();                             //initialize GLEW - this enables us to use extensions
+    if(err != GLEW_OK)
+    {
+        std::cout << "ERROR: Loading GLEW failed." << std::endl;
+        exit(-1);
+    }
+    checkExtensions();
+    glClearColor(0, 0, 0, 0);   //default "empty"/background color is set to white
+    
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_DEPTH_TEST);
+    
+    float data[] = {0.0, 0.05, 0.0, 0.0, -0.05, 0.0, 0.1, 0.0, 0.0};
+    
+    //Initialize vertex buffer
+    glGenBuffers(1, &m_vertexbuffer);               //generate a vertex buffer
+    glBindBuffer(GL_ARRAY_BUFFER, m_vertexbuffer);  //bind buffer to be active
+    glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW); //set buffer data
+    glVertexPointer(3, GL_FLOAT, 0, NULL); //Let OpenGl know that there are 3 coordinates per vertex
+    glEnableClientState(GL_VERTEX_ARRAY); //Let OpenGL know that the VBO contains verticies
+    glEnableVertexAttribArray(m_pos_attribute_location); //point to position attribute in shader
+    glVertexAttribPointer(m_pos_attribute_location, 3, GL_FLOAT, GL_FALSE, 0, 0); //indicates array data of position attribute  
+    
+    makeShaders();          //load data of fragment and vertex programs/shaders - compile shaders
+    
+    glEnable(GL_MAP1_VERTEX_3);
+    
+    
+}
+
+
+/*
+    Redraws window contents
+ */
+void glutWidget::render()
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);     //clears color and depth bits of framebuffer
+    
+    //Convenience variables
+    float t = (float) ((int) (((float) clock()) * 50.0 / CLOCKS_PER_SEC) % 30) / 30.0;
+    int t2 = ((int) (((float) clock()) * 50.0 / CLOCKS_PER_SEC) % 360) / 30;
+    float t3 = (float) clock() * 5.0 / CLOCKS_PER_SEC;
+    float ampl1 = 0.15, ampl2 = 0.1;
+    
+    //These are the control points for the bezier curves
+    GLfloat curves[12][4][3] =
     {
         {
             {-0.752, 0.124, 0.0},
@@ -105,12 +159,12 @@ GLfloat curves[12][4][3] =
         {
             {0.348, -0.032, 0.0},
             {0.248, -0.028, 0.0},
-            {0.38, -0.792, 0.0},
-            {0.232, -0.596, 0.0}
+            {0.38 + ampl1 * sin(t3), -0.792, 0.0}, //Foot start
+            {0.232 + ampl1 * sin(t3), -0.596, 0.0}
         },
         {
-            {0.232, -0.596, 0.0},
-            {0.084, -0.4, 0.0},
+            {0.232 + ampl1 * sin(t3), -0.596, 0.0},
+            {0.084 + ampl1 * sin(t3), -0.4, 0.0}, //Foot end
             {0.15772, -0.1828, 0.0},
             {0.1, -0.14, 0.0}
         },
@@ -123,12 +177,12 @@ GLfloat curves[12][4][3] =
         {
             {-0.284, -0.22, 0.0},
             {-0.3244, -0.30612, 0.0},
-            {-0.2664, -0.44784, 0.0},
-            {-0.324, -0.56, 0.0}
+            {-0.2664 + ampl2 * sin(t3 + 2.0), -0.44784, 0.0}, //Foot start
+            {-0.324 + ampl2 * sin(t3 + 2.0), -0.56, 0.0}
         },
         {
-            {-0.324, -0.56, 0.0},
-            {-0.476, -0.856, 0.0},
+            {-0.324 + ampl2 * sin(t3 + 2.0), -0.56, 0.0},
+            {-0.476 + ampl2 * sin(t3 + 2.0), -0.856, 0.0}, //Foot end
             {-0.5136, -0.33052, 0.0},
             {-0.608, -0.212, 0.0}
         },
@@ -145,53 +199,54 @@ GLfloat curves[12][4][3] =
             {-0.752, 0.124, 0.0}
         }
     };
-
-
-/*
- Initializes opengl states
- */
-void glutWidget::initOpenGL()
-{
-    glewExperimental = GL_TRUE; 
-    GLenum err = glewInit();                             //initialize GLEW - this enables us to use extensions
-    if(err != GLEW_OK)
+    
+    
+    //Manually evaluate the bezier curves
+    float s = 1 - t;
+    float AB[2] = {curves[t2][0][0]*s + curves[t2][1][0]*t, curves[t2][0][1]*s + curves[t2][1][1]*t};
+    float BC[2] = {curves[t2][1][0]*s + curves[t2][2][0]*t, curves[t2][1][1]*s + curves[t2][2][1]*t};
+    float CD[2] = {curves[t2][2][0]*s + curves[t2][3][0]*t, curves[t2][2][1]*s + curves[t2][3][1]*t};
+    float ABC[2] = {AB[0]*s + BC[0]*t, AB[1]*s + BC[1]*t};
+    float BCD[2] = {BC[0]*s + CD[0]*t, BC[1]*s + CD[1]*t};
+    float pos[2] = {ABC[0]*s + BCD[0]*t, ABC[1]*s + BCD[1]*t};
+    float slope = (ABC[1] - BCD[1]) / (ABC[0] - BCD[0]);
+    float theta = atan(slope);
+    
+    //Rotation/translation matrix
+    float matrix[4][4] = 
     {
-        std::cout << "ERROR: Loading GLEW failed." << std::endl;
-        exit(-1);
+        {cos(theta), -sin(theta), 0, 0},
+        {sin(theta), cos(theta), 0, 0},
+        {0, 0, 1, 0},
+        {pos[0], pos[1], 0, 1}
+    };
+    
+    //Keep the texture pointing in the right direction throughout the loop
+    if((ABC[0] - BCD[0]) < 0)
+    {
+        matrix[0][1] = -(matrix[0][1]);
+        matrix[1][0] = -(matrix[1][0]);
     }
-    checkExtensions();
-    glClearColor(0, 0, 0, 0);   //default "empty"/background color is set to white
+    else if((ABC[0] - BCD[0]) > 0)
+    {
+        matrix[0][0] = -(matrix[0][0]);
+        matrix[1][1] = -(matrix[1][1]);
+    }
     
-    glEnable(GL_CULL_FACE);
-    glEnable(GL_DEPTH_TEST);
+    //Since we aren't using it for anything else, we'll use the ModelView matrix
+    //to store our transformations. This way we don't have to manually pass the
+    //matrix to the vertex shader.
+    glMatrixMode(GL_MODELVIEW);
+    glLoadMatrixf(&matrix[0][0]);
     
-    float data[] = {-0.05, 0.0, 0.0, 0.05, 0.0, 0.0, 0.0, 0.1, 0.0};
+    glUseProgram(m_program); //Enables shaders
+    glColor3f(0.0, 0.0, 0.0);
+    glDrawArrays(GL_TRIANGLES, 0, 3); //draw triangle
+    glUseProgram(0); //Disables shaders
     
-    //Initialize vertex buffer
-    glGenBuffers(1, &m_vertexbuffer);               //generate a vertex buffer
-    glBindBuffer(GL_ARRAY_BUFFER, m_vertexbuffer);  //bind buffer to be active
-    glBufferData(GL_ARRAY_BUFFER, sizeof(data), data, GL_STATIC_DRAW); //set buffer data
-    glVertexPointer(3, GL_FLOAT, 0, NULL); //Let OpenGl know that there are 3 coordinates per vertex
-    glEnableClientState(GL_VERTEX_ARRAY); //Let OpenGL know that the VBO contains verticies
-    glEnableVertexAttribArray(m_pos_attribute_location); //point to position attribute in shader
-    glVertexAttribPointer(m_pos_attribute_location, 3, GL_FLOAT, GL_FALSE, 0, 0); //indicates array data of position attribute  
+    glLoadIdentity();
     
-    //makeShaders();          //load data of fragment and vertex programs/shaders - compile shaders
-    
-    glEnable(GL_MAP1_VERTEX_3);
-    
-    
-}
-
-
-/*
-    Redraws window contents
- */
-void glutWidget::render()
-{
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);     //clears color and depth bits of framebuffer
-    
-    //Draws the bezier curves using EvalCoord()
+    //Draws the bezier curves themselves using EvalCoord()
     glColor3f(0.0, 1.0, 1.0);
     for(int i = 0; i < 12; i++)
     {
@@ -201,38 +256,6 @@ void glutWidget::render()
              glEvalCoord1f((GLfloat) i/30.0);
         glEnd();
     }
-    
-    glMatrixMode(GL_TEXTURE);
-    glLoadIdentity();
-    
-    float t = (GLfloat) (m_frame % 30) / 30.0;
-    float s = 1 - t;
-    float AB[2] = {curves[(m_frame % 360) / 30][0][0]*s + curves[(m_frame % 360) / 30][1][0]*t, curves[(m_frame % 360) / 30][0][1]*s + curves[(m_frame % 360) / 30][1][1]*t};
-    float BC[2] = {curves[(m_frame % 360) / 30][1][0]*s + curves[(m_frame % 360) / 30][2][0]*t, curves[(m_frame % 360) / 30][1][1]*s + curves[(m_frame % 360) / 30][2][1]*t};
-    float CD[2] = {curves[(m_frame % 360) / 30][2][0]*s + curves[(m_frame % 360) / 30][3][0]*t, curves[(m_frame % 360) / 30][2][1]*s + curves[(m_frame % 360) / 30][3][1]*t};
-    float ABC[2] = {AB[0]*s + BC[0]*t, AB[1]*s + BC[1]*t};
-    float BCD[2] = {BC[0]*s + CD[0]*t, BC[1]*s + CD[1]*t};
-    float coord[2] = {ABC[0]*s + BCD[0]*t, ABC[1]*s + BCD[1]*t};
-    
-    
-    
-    glColor3f(0.0, 1.0, 0.0);
-    glDrawArrays(GL_TRIANGLES, 0, 3); //draw triangle
-
-//    glUseProgram(m_program); //Enables shaders
-//    
-//    glBegin(GL_QUADS);
-//    glTexCoord2f(0, 0);
-//    glVertex2f(-1, -1);
-//    glTexCoord2f(1, 0);
-//    glVertex2f(1, -1);
-//    glTexCoord2f(1, 1);
-//    glVertex2f(1, 1);
-//    glTexCoord2f(0, 1);
-//    glVertex2f(-1, 1);
-//    glEnd();
-//    
-//    glUseProgram(0); //Disables shaders
     
     glutSwapBuffers();  //swaps front and back buffer for double buffering
 }
