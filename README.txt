@@ -1,6 +1,6 @@
 ECS 175: Computer Graphics
 UC Davis, Spring 2013
-Mandelbrot Set Visualization
+Bezier Curves
 Christopher Chen
 tech@ucdavis.edu
 
@@ -13,22 +13,19 @@ cmake
 
 
 Overview:
-Uses a fragment shader to render the Mandelbrot set.
+Renders the silhouette of a dog using 12 third degree bezier curves connected 
+with C1 continuity. Also renders a triangle that follows the silhouette while 
+aligned with the tangent at each point, which is rotated and translated using a 
+vertex shader and is textured based on its current rotation using a fragment 
+shader.
 
 
 Commands to create makefile + compile + run:
 
 cmake .
 make
-./mandelbrot.x
+./bezier.x
 
 Controls:
 
-Translation         Arrow Keys
-Zoom In             W
-Zoom Out            S
-Zoom In Cursor      Mouse Wheel Scroll Up
-Zoom Out Cursor     Mouse Wheel Scroll Down
-Enable Guidance     H
-Change Colors       C
 Quit                ESC, Q

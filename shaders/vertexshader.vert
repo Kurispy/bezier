@@ -1,3 +1,5 @@
+#version 110
+
 attribute  vec3 in_Position;	//attribute 0 of VBO: this attribute holds positions of vertices
 varying vec4 color;
 
