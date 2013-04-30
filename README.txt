@@ -17,7 +17,8 @@ Renders the silhouette of a dog using 12 third degree bezier curves connected
 with C1 continuity. Also renders a triangle that follows the silhouette while 
 aligned with the tangent at each point, which is rotated and translated using a 
 vertex shader and is textured based on its current rotation using a fragment 
-shader.
+shader. The legs of the dog are also animated so as to make it (hopefully)
+look like it's walking.
 
 
 Commands to create makefile + compile + run:
