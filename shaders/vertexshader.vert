@@ -2,6 +2,7 @@
 
 attribute  vec3 in_Position;	//attribute 0 of VBO: this attribute holds positions of vertices
 varying vec4 color;
+float x;
 
  
 void main(void)
@@ -11,5 +12,6 @@ void main(void)
 
 	gl_Position = gl_ModelViewMatrix * vec4(in_Position, 1.0);  	//rotate, translate, and project positions - note 1.0 w component for positions
 
-    color = vec4 (abs(gl_ModelViewMatrix[0][0]), 1 - abs(gl_ModelViewMatrix[0][0]), 0.0, 1);
+    x = gl_ModelViewMatrix[0][0];
+    color = vec4 (abs(x), 1 - abs(x), 0.0, 1);
 }
